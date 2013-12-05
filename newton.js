@@ -5,7 +5,8 @@
         this.angle = "undefined" == typeof angle ? this.getAngle() : angle, this.stiffness = stiffness || 1, 
         this.isDestroyed = !1, void 0) : new AngleConstraint(p1, axis, p2, stiffness, angle);
     }
-    Math.PI, 2 * Math.PI, AngleConstraint.prototype.category = "angular", AngleConstraint.prototype.priority = 6, 
+    Math.PI, 2 * Math.PI;
+    AngleConstraint.prototype.category = "angular", AngleConstraint.prototype.priority = 6, 
     AngleConstraint.prototype.getAngle = function() {
         var p1 = this.p1.position.pool().sub(this.axis.position), p2 = this.p2.position.pool().sub(this.axis.position), angle = p1.getAngleTo(p2);
         return p1.free(), p2.free(), angle;
@@ -138,7 +139,7 @@
     function Edge(p1, p2, material) {
         return this instanceof Edge ? (this.p1 = p1, this.p2 = p2, this.material = material || Newton.Material.simple, 
         this.compute(), this._rect = new Newton.Rectangle(0, 0, 0, 0), this.layer = void 0, 
-        void 0) : new Edge(p1, p2, material);
+        this.isDestroyed = !1, void 0) : new Edge(p1, p2, material);
     }
     Edge.COLLISION_TOLERANCE = .5, Edge.getAbc = function(x1, y1, x2, y2) {
         var a = y2 - y1, b = x1 - x2, c = a * x1 + b * y1;
@@ -186,6 +187,8 @@
     }, Edge.prototype.getReflection = function(velocity, restitution) {
         var dir = this.normal.clone(), friction = this.material.friction, velN = dir.scale(velocity.getDot(dir)).scale(restitution), velT = velocity.clone().sub(velN).scale(1 - friction), reflectedVel = velT.sub(velN);
         return reflectedVel;
+    }, Edge.prototype.destroy = function() {
+        this.isDestroyed = !0;
     }, Newton.Edge = Edge;
 }("undefined" == typeof exports ? this.Newton = this.Newton || {} : exports), function(Newton) {
     "use strict";
@@ -200,9 +203,8 @@
     }
     var lastTime = 0;
     if ("undefined" != typeof window) {
-        var vendors = [ "ms", "moz", "webkit", "o" ], isOpera = !!window.opera || navigator.userAgent.indexOf(" OPR/") >= 0;
-        Object.prototype.toString.call(window.HTMLElement).indexOf("Constructor") > 0, !!window.chrome && !isOpera;
-        for (var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) window.requestAnimationFrame = window[vendors[x] + "RequestAnimationFrame"], 
+        for (var vendors = [ "ms", "moz", "webkit", "o" ], isOpera = !!window.opera || navigator.userAgent.indexOf(" OPR/") >= 0, x = (Object.prototype.toString.call(window.HTMLElement).indexOf("Constructor") > 0, 
+        !!window.chrome && !isOpera, 0); x < vendors.length && !window.requestAnimationFrame; ++x) window.requestAnimationFrame = window[vendors[x] + "RequestAnimationFrame"], 
         window.cancelAnimationFrame = window[vendors[x] + "CancelAnimationFrame"] || window[vendors[x] + "CancelRequestAnimationFrame"];
         window.requestAnimationFrame || (window.requestAnimationFrame = timeoutFrame, window.cancelAnimationFrame = cancelTimeoutFrame), 
         Newton.frame = window.requestAnimationFrame.bind(window), Newton.cancelFrame = window.cancelAnimationFrame.bind(window);
@@ -310,11 +312,11 @@
             for (this.lastTime = time, step > 100 && (step = 0), this.accumulator += step; this.accumulator >= this.simulationStep; ) this.simulate(this.simulationStep, time - this.startTime), 
             this.accumulator -= this.simulationStep;
             for (var i = 0; i < this.renderers.length; i++) this.renderers[i](step, this);
-            this.frames++, time >= this.countTime && (this.fps = (1e3 * (this.frames / (this.countInterval + time - this.countTime))).toFixed(0), 
+            this.frames++, time >= this.countTime && (this.fps = (this.frames / (this.countInterval + time - this.countTime) * 1e3).toFixed(0), 
             this.frames = 0, this.countTime = time + this.countInterval), Newton.frame(this.step);
         }
     }, Simulator.prototype.simulate = function(time, totalTime) {
-        this.cull(this.particles), this.cull(this.constraints), this.callback(time, this, totalTime), 
+        this.cull(this.particles), this.cull(this.constraints), this.cull(this.edges), this.callback(time, this, totalTime), 
         this.integrate(time), this.constrain(time), this.updateEdges(), this.collide(time);
     }, Simulator.prototype.cull = function(array) {
         for (var i = 0; i < array.length; ) array[i].isDestroyed ? array.splice(i, 1) : i++;
@@ -574,14 +576,14 @@
             for (var i = 0, ilen = forces.length; ilen > i; i++) {
                 var force = forces[i];
                 force instanceof Newton.RadialGravity && (this.graphics.beginFill(16777215, .2), 
-                this.graphics.drawCircle(force.x, force.y, .5 * force.strength * force.strength), 
+                this.graphics.drawCircle(force.x, force.y, force.strength * force.strength * .5), 
                 this.graphics.endFill());
             }
         },
         drawParticles: function(particles) {
             for (var particle, pos, last, mass, brightness, j = 0, jlen = particles.length; jlen > j; j++) particle = particles[j], 
             pos = particle.position, last = particle.lastValidPosition, mass = particle.getMass(), 
-            brightness = ~~(128 * ((mass - 1) / 5)), particle.colliding ? this.graphics.lineStyle(mass, rgbToHex(255, 255, 100), 1) : this.graphics.lineStyle(mass, rgbToHex(255, 28 + brightness, 108 + brightness), 1), 
+            brightness = ~~((mass - 1) / 5 * 128), particle.colliding ? this.graphics.lineStyle(mass, rgbToHex(255, 255, 100), 1) : this.graphics.lineStyle(mass, rgbToHex(255, 28 + brightness, 108 + brightness), 1), 
             this.graphics.moveTo(last.x - 1, last.y), this.graphics.lineTo(pos.x + 1, pos.y);
             return particles.length;
         },
@@ -617,7 +619,7 @@
             ctx.save(), ctx.lineWidth = 2, ctx.strokeStyle = "rgba(255, 255, 255, 0.25)", ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
             for (var i = 0, ilen = forces.length; ilen > i; i++) {
                 var force = forces[i];
-                force instanceof Newton.RadialGravity && (ctx.beginPath(), ctx.arc(force.x, force.y, .5 * force.strength * force.strength, 0, 2 * Math.PI, !1), 
+                force instanceof Newton.RadialGravity && (ctx.beginPath(), ctx.arc(force.x, force.y, force.strength * force.strength * .5, 0, 2 * Math.PI, !1), 
                 ctx.fill());
             }
             ctx.restore();
@@ -743,7 +745,7 @@
             ctx.save(), ctx.lineWidth = 2, ctx.strokeStyle = "rgba(255, 255, 255, 0.25)", ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
             for (var i = 0, ilen = forces.length; ilen > i; i++) {
                 var force = forces[i];
-                force instanceof Newton.RadialGravity && (ctx.beginPath(), ctx.arc(force.x, force.y, .5 * force.strength * force.strength, 0, 2 * Math.PI, !1), 
+                force instanceof Newton.RadialGravity && (ctx.beginPath(), ctx.arc(force.x, force.y, force.strength * force.strength * .5, 0, 2 * Math.PI, !1), 
                 ctx.fill());
             }
             ctx.restore();

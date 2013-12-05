@@ -13,6 +13,7 @@
 
     this._rect = new Newton.Rectangle(0, 0, 0, 0);
     this.layer = undefined;
+    this.isDestroyed = false;
   };
 
   Edge.COLLISION_TOLERANCE = 0.5;
@@ -112,6 +113,10 @@
     var velT = velocity.clone().sub(velN).scale(1 - friction);
     var reflectedVel = velT.sub(velN);
     return reflectedVel;
+  };
+
+  Edge.prototype.destroy = function() {
+    this.isDestroyed = true;
   };
 
   Newton.Edge = Edge;

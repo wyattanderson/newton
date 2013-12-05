@@ -87,6 +87,7 @@
   Simulator.prototype.simulate = function(time, totalTime) {
     this.cull(this.particles);
     this.cull(this.constraints);
+    this.cull(this.edges);
     this.callback(time, this, totalTime);
     this.integrate(time);
     this.constrain(time);
